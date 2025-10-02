@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dataset Features - Predicción de Vacancias</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .controls {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        .filter-btn:hover, .filter-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 0;
+            min-height: 600px;
+        }
+        
+        .features-list {
+            padding: 30px;
+            overflow-y: auto;
+            max-height: 700px;
+        }
+        
+        .feature-category {
+            margin-bottom: 30px;
+        }
+        
+        .category-header {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .category-header.energia { border-color: #e74c3c; }
+        .category-header.coordinacion { border-color: #3498db; }
+        .category-header.geometria { border-color: #27ae60; }
+        .category-header.clustering { border-color: #f39c12; }
+        .category-header.topologia { border-color: #9b59b6; }
+        .category-header.metadata { border-color: #95a5a6; }
+        
+        .feature-item {
+            padding: 12px 15px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .feature-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .feature-item.selected {
+            background: #667eea;
+            color: white;
+        }
+        
+        .feature-name {
+            font-weight: 600;
+            font-size: 1.05em;
+            margin-bottom: 3px;
+        }
+        
+        .feature-type {
+            font-size: 0.85em;
+            opacity: 0.7;
+        }
+        
+        .detail-panel {
+            background: #f8f9fa;
+            padding: 30px;
+            border-left: 2px solid #e9ecef;
+            overflow-y: auto;
+        }
+        
+        .detail-panel h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+        
+        .detail-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .detail-section {
+            margin-bottom: 20px;
+        }
+        
+        .detail-section h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .detail-section p {
+            color: #555;
+            line-height: 1.6;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin: 5px 5px 5px 0;
+        }
+        
+        .badge.float { background: #e3f2fd; color: #1976d2; }
+        .badge.integer { background: #f3e5f5; color: #7b1fa2; }
+        .badge.string { background: #fff3e0; color: #e65100; }
+        
+        .formula {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            margin: 10px 0;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 1024px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+            
+            .detail-panel {
+                border-left: none;
+                border-top: 2px solid #e9ecef;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Dataset de Features - Predicción de Vacancias</h1>
+            <p>Explorador interactivo de características extraídas</p>
+        </header>
+        
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value">152</div>
+                <div class="stat-label">Features Totales</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">1121</div>
+                <div class="stat-label">Muestras</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">~200+</div>
+                <div class="stat-label">Dimensionalidad</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">6</div>
+                <div class="stat-label">Categorías</div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Buscar feature por nombre...">
+            </div>
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-category="all">Todas</button>
+                <button class="filter-btn" data-category="energia">Energía</button>
+                <button class="filter-btn" data-category="coordinacion">Coordinación</button>
+                <button class="filter-btn" data-category="geometria">Geometría</button>
+                <button class="filter-btn" data-category="clustering">Clustering</button>
+                <button class="filter-btn" data-category="topologia">Topología</button>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="features-list" id="featuresList">
+                <!-- Las features se cargarán aquí dinámicamente -->
+            </div>
+            
+            <div class="detail-panel">
+                <h2>Detalles de la Feature</h2>
+                <div id="detailContent" class="detail-content">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📊</div>
+                        <p>Selecciona una feature de la lista para ver sus detalles</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const features = {
+            energia: [
+                {
+                    name: 'pe_min', type: 'Float',
+                    desc: 'Energía potencial mínima de todos los átomos de superficie',
+                    formula: 'min(energía_potencial)',
+                    uso: 'Identifica el átomo más estable en la superficie'
+                },
+                {
+                    name: 'pe_p10', type: 'Float',
+                    desc: 'Percentil 10 de la energía potencial',
+                    uso: 'Caracteriza el 10% de átomos con menor energía'
+                },
+                {
+                    name: 'pe_p25', type: 'Float',
+                    desc: 'Cuartil inferior (Q1) de la energía potencial',
+                    uso: 'Límite del 25% de átomos con menor energía'
+                },
+                {
+                    name: 'pe_median', type: 'Float',
+                    desc: 'Mediana de la energía potencial',
+                    uso: 'Valor central robusto ante outliers'
+                },
+                {
+                    name: 'pe_p75', type: 'Float',
+                    desc: 'Cuartil superior (Q3) de la energía potencial',
+                    uso: 'Límite del 75% de átomos con menor energía'
+                },
+                {
+                    name: 'pe_p90', type: 'Float',
+                    desc: 'Percentil 90 de la energía potencial',
+                    uso: 'Caracteriza el 10% de átomos con mayor energía'
+                },
+                {
+                    name: 'pe_max', type: 'Float',
+                    desc: 'Energía potencial máxima',
+                    uso: 'Identifica el átomo más inestable en la superficie'
+                },
+                {
+                    name: 'pe_mean', type: 'Float',
+                    desc: 'Promedio de energía potencial',
+                    uso: 'Energía característica del sistema'
+                },
+                {
+                    name: 'pe_std', type: 'Float',
+                    desc: 'Desviación estándar de la energía potencial',
+                    uso: 'Mide la heterogeneidad energética del sistema'
+                },
+                {
+                    name: 'pe_skew', type: 'Float',
+                    desc: 'Asimetría de la distribución de energía',
+                    formula: 'skewness = E[(X-μ)³]/σ³',
+                    uso: 'Detecta si hay más átomos de alta o baja energía'
+                },
+                {
+                    name: 'pe_kurt', type: 'Float',
+                    desc: 'Curtosis de la distribución de energía',
+                    uso: 'Mide si hay valores extremos de energía'
+                },
+                {
+                    name: 'pe_absolute_min', type: 'Float',
+                    desc: 'Mínimo absoluto de energía potencial',
+                    uso: 'Valor más bajo de energía en todo el sistema'
+                },
+                {
+                    name: 'frac_pe_top5', type: 'Float',
+                    desc: 'Fracción de átomos en el percentil 95 de energía',
+                    uso: 'Proporción de átomos altamente inestables'
+                },
+                {
+                    name: 'pe_bin_0 ... pe_bin_9', type: 'Float',
+                    desc: 'Histograma de energía en 10 bins',
+                    formula: 'Bins entre ENERGY_MIN (-4.45) y ENERGY_MAX (-4.3)',
+                    uso: 'Caracteriza la distribución completa de energías'
+                },
+                {
+                    name: 'pe_below_min', type: 'Float',
+                    desc: 'Fracción de átomos con energía < -4.45',
+                    uso: 'Átomos excepcionalmente estables'
+                },
+                {
+                    name: 'pe_above_max', type: 'Float',
+                    desc: 'Fracción de átomos con energía > -4.3',
+                    uso: 'Átomos excepcionalmente inestables'
+                }
+            ],
+            coordinacion: [
+                {
+                    name: 'coord_min', type: 'Float',
+                    desc: 'Número mínimo de coordinación',
+                    uso: 'Identifica el átomo más aislado'
+                },
+                {
+                    name: 'coord_median', type: 'Float',
+                    desc: 'Mediana del número de coordinación',
+                    uso: 'Coordinación típica en el sistema'
+                },
+                {
+                    name: 'coord_mean', type: 'Float',
+                    desc: 'Promedio del número de coordinación',
+                    uso: 'Conectividad promedio de átomos'
+                },
+                {
+                    name: 'coord_std', type: 'Float',
+                    desc: 'Desviación estándar de la coordinación',
+                    uso: 'Heterogeneidad en la conectividad'
+                },
+                {
+                    name: 'coord_below_8', type: 'Float',
+                    desc: 'Fracción de átomos con coordinación < 8',
+                    uso: 'Proporción de átomos sub-coordinados (defectos)'
+                },
+                {
+                    name: 'coord_perfect_12', type: 'Float',
+                    desc: 'Fracción de átomos con coordinación exacta de 12',
+                    uso: 'Proporción de estructura FCC perfecta'
+                },
+                {
+                    name: 'coord_bin_4_5 ... coord_bin_12', type: 'Float',
+                    desc: 'Distribución de coordinación en bins',
+                    uso: 'Caracteriza completamente la estructura local'
+                },
+                {
+                    name: 'frac_coord_le_9', type: 'Float',
+                    desc: 'Fracción de átomos con coordinación ≤ 9',
+                    uso: 'Indicador de defectos superficiales'
+                },
+                {
+                    name: 'frac_coord_le_10', type: 'Float',
+                    desc: 'Fracción de átomos con coordinación ≤ 10',
+                    uso: 'Umbral intermedio de defectos'
+                },
+                {
+                    name: 'frac_coord_le_11', type: 'Float',
+                    desc: 'Fracción de átomos con coordinación ≤ 11',
+                    uso: 'Átomos casi perfectos pero con ligeros defectos'
+                }
+            ],
+            geometria: [
+                {
+                    name: 'convex_hull_volume', type: 'Float',
+                    desc: 'Volumen del convex hull de átomos superficiales',
+                    formula: 'Volumen del poliedro convexo mínimo',
+                    uso: 'Tamaño efectivo del nanoporo'
+                },
+                {
+                    name: 'convex_hull_surface_area', type: 'Float',
+                    desc: 'Área superficial del convex hull',
+                    uso: 'Superficie expuesta del nanoporo'
+                },
+                {
+                    name: 'convex_hull_n_vertices', type: 'Float',
+                    desc: 'Número de vértices del convex hull',
+                    uso: 'Complejidad de la geometría'
+                },
+                {
+                    name: 'convex_hull_n_faces', type: 'Float',
+                    desc: 'Número de caras del convex hull',
+                    uso: 'Complejidad topológica de la superficie'
+                },
+                {
+                    name: 'hull_compactness', type: 'Float',
+                    desc: 'Relación isoperimétrica del hull',
+                    formula: '36π·V²/A³',
+                    uso: 'Qué tan esférico es el sistema (1 = esfera perfecta)'
+                },
+                {
+                    name: 'sphericity_wadell', type: 'Float',
+                    desc: 'Esfericidad de Wadell',
+                    formula: 'A_esfera_equivalente / A_hull',
+                    uso: 'Otra medida de redondez del sistema'
+                },
+                {
+                    name: 'bbox_volume', type: 'Float',
+                    desc: 'Volumen del bounding box',
+                    uso: 'Volumen del paralelepípedo que contiene todo'
+                },
+                {
+                    name: 'bbox_surface_area', type: 'Float',
+                    desc: 'Área superficial del bounding box',
+                    uso: 'Superficie del contenedor rectangular'
+                },
+                {
+                    name: 'bbox_dim_x/y/z', type: 'Float',
+                    desc: 'Dimensiones del bounding box en cada eje',
+                    uso: 'Tamaño del sistema en cada dirección'
+                },
+                {
+                    name: 'effective_radius', type: 'Float',
+                    desc: 'Radio efectivo desde el centroide',
+                    formula: 'mean(||r - r_centro||)',
+                    uso: 'Radio promedio del nanoporo'
+                },
+                {
+                    name: 'max_distance_from_centroid', type: 'Float',
+                    desc: 'Distancia máxima desde el centro',
+                    uso: 'Radio máximo del sistema'
+                },
+                {
+                    name: 'volume_ratio_hull_to_bbox', type: 'Float',
+                    desc: 'Ratio volumen hull / volumen bbox',
+                    uso: 'Qué tan lleno está el espacio (< 1)'
+                },
+                {
+                    name: 'atom_density_in_hull', type: 'Float',
+                    desc: 'Densidad atómica en el hull',
+                    formula: 'n_átomos_superficie / volumen_hull',
+                    uso: 'Compacidad atómica del sistema'
+                }
+            ],
+            clustering: [
+                {
+                    name: 'ms_n_clusters', type: 'Float',
+                    desc: 'Número de clusters encontrados por Mean Shift',
+                    uso: 'Cuántas regiones densas hay en la superficie'
+                },
+                {
+                    name: 'ms_bandwidth', type: 'Float',
+                    desc: 'Ancho de banda usado en Mean Shift',
+                    formula: 'Estimado por quantile=0.2',
+                    uso: 'Escala característica de agrupamiento'
+                },
+                {
+                    name: 'ms_largest_cluster_size', type: 'Float',
+                    desc: 'Tamaño del cluster más grande',
+                    uso: 'Región más poblada de átomos'
+                },
+                {
+                    name: 'ms_avg_cluster_size', type: 'Float',
+                    desc: 'Tamaño promedio de clusters',
+                    uso: 'Tamaño típico de las regiones densas'
+                },
+                {
+                    name: 'ms_cluster_size_std', type: 'Float',
+                    desc: 'Desviación estándar de tamaños',
+                    uso: 'Heterogeneidad en tamaño de clusters'
+                },
+                {
+                    name: 'ms_largest_cluster_ratio', type: 'Float',
+                    desc: 'Fracción del cluster más grande',
+                    uso: 'Proporción de átomos en cluster dominante'
+                },
+                {
+                    name: 'ms_avg_centroid_distance', type: 'Float',
+                    desc: 'Distancia promedio entre centroides',
+                    uso: 'Separación típica entre regiones densas'
+                },
+                {
+                    name: 'ms_cluster_size_cv', type: 'Float',
+                    desc: 'Coeficiente de variación de tamaños',
+                    formula: 'std / mean',
+                    uso: 'Uniformidad en tamaños de cluster'
+                },
+                {
+                    name: 'ms_avg_cluster_spread', type: 'Float',
+                    desc: 'Dispersión promedio dentro de clusters',
+                    uso: 'Qué tan compactos son los clusters'
+                }
+            ],
+            topologia: [
+                {
+                    name: 'moi_Ixx/Iyy/Izz', type: 'Float',
+                    desc: 'Momentos de inercia principales',
+                    formula: 'Ixx = Σ(y²+z²), Iyy = Σ(x²+z²), Izz = Σ(x²+y²)',
+                    uso: 'Distribución de masa del sistema'
+                },
+                {
+                    name: 'moi_anisotropy', type: 'Float',
+                    desc: 'Anisotropía del tensor de inercia',
+                    formula: '(I₁-I₃)/I₁',
+                    uso: 'Qué tan anisotrópico es el sistema (0=esférico)'
+                },
+                {
+                    name: 'moi_sphericity', type: 'Float',
+                    desc: 'Esfericidad basada en momentos',
+                    formula: 'I₃/I₁',
+                    uso: 'Medida alternativa de redondez'
+                },
+                {
+                    name: 'elongation', type: 'Float',
+                    desc: 'Elongación del sistema',
+                    formula: '√(I₁/I₃)',
+                    uso: 'Qué tan alargado está el sistema'
+                },
+                {
+                    name: 'planarity', type: 'Float',
+                    desc: 'Planaridad del sistema',
+                    formula: '(I₂-I₃)/I₂',
+                    uso: 'Qué tan plano es el sistema'
+                },
+                {
+                    name: 'rdf_bin_0 ... rdf_bin_19', type: 'Float',
+                    desc: 'Función de distribución radial (20 bins)',
+                    uso: 'Distribución de átomos desde el centro'
+                },
+                {
+                    name: 'rdf_entropy', type: 'Float',
+                    desc: 'Entropía de la distribución radial',
+                    formula: '-Σ(p·log(p))',
+                    uso: 'Desorden en la distribución radial'
+                },
+                {
+                    name: 'topo_fractal_dimension', type: 'Float',
+                    desc: 'Dimensión fractal aproximada',
+                    formula: 'Box-counting method',
+                    uso: 'Complejidad geométrica del sistema'
+                },
+                {
+                    name: 'layers_count', type: 'Float',
+                    desc: 'Número de capas radiales detectadas',
+                    uso: 'Estructura tipo cebolla del nanoporo'
+                },
+                {
+                    name: 'layers_regularity', type: 'Float',
+                    desc: 'Regularidad del espaciado entre capas',
+                    formula: '1 - std/mean',
+                    uso: 'Uniformidad de las capas'
+                },
+                {
+                    name: 'entropy_spatial', type: 'Float',
+                    desc: 'Entropía espacial 3D',
+                    uso: 'Desorden general del sistema'
+                },
+                {
+                    name: 'curvature_mean', type: 'Float',
+                    desc: 'Curvatura media de la superficie',
+                    uso: 'Rugosidad promedio de la superficie'
+                },
+                {
+                    name: 'connectivity_clusters', type: 'Float',
+                    desc: 'Número de componentes conectados',
+                    uso: 'Cuántas regiones desconectadas hay'
+                },
+                {
+                    name: 'topo_energy_gradient_mean', type: 'Float',
+                    desc: 'Gradiente espacial de energía',
+                    formula: '∇E = ΔE/Δr',
+                    uso: 'Variación espacial de energía'
+                }
+            ],
+            metadata: [
+                {
+                    name: 'vacancies', type: 'Integer',
+                    desc: 'Número de vacancias (TARGET)',
+                    formula: '16384 - n_átomos_totales',
+                    uso: 'Variable objetivo a predecir'
+                },
+                {
+                    name: 'n_atoms_surface', type: 'Integer',
+                    desc: 'Número de átomos en la superficie',
+                    uso: 'Átomos después del filtro OVITO (NO usar en modelo)'
+                },
+                {
+                    name: 'file', type: 'String',
+                    desc: 'Nombre del archivo dump original',
+                    uso: 'Identificador de la muestra'
+                },
+                {
+                    name: 'file_processed', type: 'String',
+                    desc: 'Nombre del archivo procesado por OVITO',
+                    uso: 'Referencia al archivo _surface.dump'
+                }
+            ]
+        };
+        
+        let selectedCategory = 'all';
+        let searchTerm = '';
+        
+        function renderFeatures() {
+            const container = document.getElementById('featuresList');
+            container.innerHTML = '';
+            
+            Object.keys(features).forEach(category => {
+                if (selectedCategory !== 'all' && selectedCategory !== category) return;
+                
+                const categoryFeatures = features[category].filter(f => 
+                    f.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    f.desc.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+                
+                if (categoryFeatures.length === 0) return;
+                
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = 'feature-category';
+                
+                const header = document.createElement('div');
+                header.className = `category-header ${category}`;
+                const icons = {
+                    energia: '⚡',
+                    coordinacion: '🔗',
+                    geometria: '📐',
+                    clustering: '🎯',
+                    topologia: '🌀',
+                    metadata: '📋'
+                };
+                header.innerHTML = `${icons[category]} ${category.charAt(0).toUpperCase() + category.slice(1)}`;
+                categoryDiv.appendChild(header);
+                
+                categoryFeatures.forEach(feature => {
+                    const item = document.createElement('div');
+                    item.className = 'feature-item';
+                    item.innerHTML = `
+                        <div class="feature-name">${feature.name}</div>
+                        <div class="feature-type">Tipo: ${feature.type}</div>
+                    `;
+                    item.addEventListener('click', () => showDetail(feature, category));
+                    categoryDiv.appendChild(item);
+                });
+                
+                container.appendChild(categoryDiv);
+            });
+        }
+        
+        function showDetail(feature, category) {
+            const detail = document.getElementById('detailContent');
+            
+            document.querySelectorAll('.feature-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+            
+            const typeClass = feature.type.toLowerCase();
+            
+            detail.innerHTML = `
+                <div class="detail-section">
+                    <h3>${feature.name}</h3>
+                    <span class="badge ${typeClass}">${feature.type}</span>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>Descripción</h3>
+                    <p>${feature.desc}</p>
+                </div>
+                
+                ${feature.formula ? `
+                <div class="detail-section">
+                    <h3>Fórmula / Cálculo</h3>
+                    <div class="formula">${feature.formula}</div>
+                </div>
+                ` : ''}
+                
+                <div class="detail-section">
+                    <h3>Uso en el Modelo</h3>
+                    <p>${feature.uso}</p>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>Categoría</h3>
+                    <p>${category.charAt(0).toUpperCase() + category.slice(1)}</p>
+                </div>
+            `;
+        }
+        
+        // Event listeners
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedCategory = btn.dataset.category;
+                renderFeatures();
+            });
+        });
+        
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            searchTerm = e.target.value;
+            renderFeatures();
+        });
+        
+        // Render inicial
+        renderFeatures();
+    </script>
+</body>
+</html>
