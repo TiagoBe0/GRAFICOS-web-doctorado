@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análisis de Predicciones</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.18.0.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+        h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+        .subtitle {
+            color: #718096;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 12px;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .metric-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+        .metric-value {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 25px;
+            margin-top: 20px;
+        }
+        .chart-container {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .chart-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #718096;
+            font-size: 1.2em;
+        }
+        .file-input-container {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #edf2f7;
+            border-radius: 12px;
+            border: 2px dashed #cbd5e0;
+        }
+        .file-input-container input {
+            width: 100%;
+            padding: 10px;
+            font-size: 1em;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Análisis de Predicciones de Vacancias</h1>
+        <p class="subtitle">Evaluación del rendimiento del modelo de Machine Learning</p>
+        
+        <div class="file-input-container">
+            <label for="csvFile" style="display: block; margin-bottom: 10px; font-weight: 600;">
+                Selecciona el archivo CSV:
+            </label>
+            <input type="file" id="csvFile" accept=".csv" />
+        </div>
+
+        <div id="metrics" class="metrics" style="display: none;">
+            <div class="metric-card">
+                <div class="metric-label">Total Predicciones</div>
+                <div class="metric-value" id="totalPred">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">MAE (Error Absoluto Medio)</div>
+                <div class="metric-value" id="mae">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">RMSE</div>
+                <div class="metric-value" id="rmse">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Error Relativo Medio (%)</div>
+                <div class="metric-value" id="mape">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">R² Score</div>
+                <div class="metric-value" id="r2">-</div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">Cargando datos...</div>
+        <div id="charts" class="chart-grid" style="display: none;"></div>
+    </div>
+
+    <script>
+        let csvData = null;
+
+        document.getElementById('csvFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                Papa.parse(file, {
+                    header: true,
+                    dynamicTyping: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        csvData = results.data;
+                        processData();
+                    }
+                });
+            }
+        });
+
+        // Intentar cargar desde window.fs si está disponible
+        async function tryLoadFromFS() {
+            try {
+                if (window.fs && window.fs.readFile) {
+                    const content = await window.fs.readFile('resumen_predicciones.csv', { encoding: 'utf8' });
+                    Papa.parse(content, {
+                        header: true,
+                        dynamicTyping: true,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            csvData = results.data;
+                            processData();
+                        }
+                    });
+                }
+            } catch (e) {
+                console.log('No se pudo cargar automáticamente:', e);
+            }
+        }
+
+        tryLoadFromFS();
+
+        function processData() {
+            if (!csvData || csvData.length === 0) return;
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('metrics').style.display = 'grid';
+            document.getElementById('charts').style.display = 'grid';
+
+            // Filtrar datos válidos
+            const validData = csvData.filter(d => 
+                d.vacancias_reales != null && 
+                d.vacancias_predichas != null &&
+                !isNaN(d.vacancias_reales) &&
+                !isNaN(d.vacancias_predichas)
+            );
+
+            // Calcular métricas
+            const n = validData.length;
+            const erroresAbs = validData.map(d => Math.abs(d.error));
+            const erroresCuad = validData.map(d => Math.pow(d.error, 2));
+            
+            const mae = erroresAbs.reduce((a, b) => a + b, 0) / n;
+            const rmse = Math.sqrt(erroresCuad.reduce((a, b) => a + b, 0) / n);
+            const mape = validData.map(d => d['error_relativo_%']).reduce((a, b) => a + b, 0) / n;
+            
+            // R²
+            const yMean = validData.map(d => d.vacancias_reales).reduce((a, b) => a + b, 0) / n;
+            const ssTot = validData.map(d => Math.pow(d.vacancias_reales - yMean, 2)).reduce((a, b) => a + b, 0);
+            const ssRes = erroresCuad.reduce((a, b) => a + b, 0);
+            const r2 = 1 - (ssRes / ssTot);
+
+            // Actualizar métricas
+            document.getElementById('totalPred').textContent = n;
+            document.getElementById('mae').textContent = mae.toFixed(2);
+            document.getElementById('rmse').textContent = rmse.toFixed(2);
+            document.getElementById('mape').textContent = mape.toFixed(2) + '%';
+            document.getElementById('r2').textContent = r2.toFixed(4);
+
+            // Crear gráficos
+            createCharts(validData);
+        }
+
+        function createCharts(data) {
+            const chartsContainer = document.getElementById('charts');
+            chartsContainer.innerHTML = '';
+
+            // 1. Scatter: Vacancias Reales vs Predichas
+            const div1 = createChartDiv('Vacancias Reales vs Predichas');
+            chartsContainer.appendChild(div1);
+            
+            const maxVal = Math.max(
+                ...data.map(d => d.vacancias_reales),
+                ...data.map(d => d.vacancias_predichas)
+            );
+            
+            Plotly.newPlot(div1.querySelector('.plot'), [
+                {
+                    x: data.map(d => d.vacancias_reales),
+                    y: data.map(d => d.vacancias_predichas),
+                    mode: 'markers',
+                    type: 'scatter',
+                    name: 'Predicciones',
+                    marker: {
+                        size: 6,
+                        color: data.map(d => Math.abs(d.error)),
+                        colorscale: 'Viridis',
+                        showscale: true,
+                        colorbar: { title: 'Error Abs' }
+                    }
+                },
+                {
+                    x: [0, maxVal],
+                    y: [0, maxVal],
+                    mode: 'lines',
+                    name: 'Predicción perfecta',
+                    line: { color: 'red', dash: 'dash', width: 2 }
+                }
+            ], {
+                title: 'Correlación: Predicho vs Real',
+                xaxis: { title: 'Vacancias Reales' },
+                yaxis: { title: 'Vacancias Predichas' },
+                hovermode: 'closest'
+            });
+
+            // 2. Scatter: Vacancias Reales vs Error Relativo
+            const div2 = createChartDiv('Vacancias Reales vs Error Relativo (%)');
+            chartsContainer.appendChild(div2);
+            
+            Plotly.newPlot(div2.querySelector('.plot'), [{
+                x: data.map(d => d.vacancias_reales),
+                y: data.map(d => d['error_relativo_%']),
+                mode: 'markers',
+                type: 'scatter',
+                marker: {
+                    size: 6,
+                    color: '#764ba2',
+                    opacity: 0.6
+                }
+            }], {
+                xaxis: { title: 'Vacancias Reales' },
+                yaxis: { title: 'Error Relativo (%)' },
+                hovermode: 'closest'
+            });
+
+            // 3. Histograma de Errores
+            const div3 = createChartDiv('Distribución de Errores');
+            chartsContainer.appendChild(div3);
+            
+            Plotly.newPlot(div3.querySelector('.plot'), [{
+                x: data.map(d => d.error),
+                type: 'histogram',
+                nbinsx: 50,
+                marker: { color: '#667eea' }
+            }], {
+                xaxis: { title: 'Error (Predicho - Real)' },
+                yaxis: { title: 'Frecuencia' }
+            });
+
+            // 4. Error Absoluto vs Vacancias Reales
+            const div4 = createChartDiv('Error Absoluto vs Vacancias Reales');
+            chartsContainer.appendChild(div4);
+            
+            Plotly.newPlot(div4.querySelector('.plot'), [{
+                x: data.map(d => d.vacancias_reales),
+                y: data.map(d => d.error_abs),
+                mode: 'markers',
+                type: 'scatter',
+                marker: {
+                    size: 6,
+                    color: '#e53e3e',
+                    opacity: 0.6
+                }
+            }], {
+                xaxis: { title: 'Vacancias Reales' },
+                yaxis: { title: 'Error Absoluto' },
+                hovermode: 'closest'
+            });
+
+            // 5. Boxplot por rangos de vacancias
+            const div5 = createChartDiv('Distribución de Error por Rango de Vacancias', true);
+            chartsContainer.appendChild(div5);
+            
+            const ranges = [
+                { min: 0, max: 1000, label: '0-1k' },
+                { min: 1000, max: 5000, label: '1k-5k' },
+                { min: 5000, max: 10000, label: '5k-10k' },
+                { min: 10000, max: 50000, label: '10k-50k' },
+                { min: 50000, max: Infinity, label: '>50k' }
+            ];
+            
+            const boxData = ranges.map(range => {
+                const rangeData = data.filter(d => 
+                    d.vacancias_reales >= range.min && d.vacancias_reales < range.max
+                );
+                return {
+                    y: rangeData.map(d => d.error),
+                    type: 'box',
+                    name: range.label,
+                    boxmean: 'sd'
+                };
+            }).filter(box => box.y.length > 0);
+            
+            Plotly.newPlot(div5.querySelector('.plot'), boxData, {
+                yaxis: { title: 'Error (Predicho - Real)' },
+                xaxis: { title: 'Rango de Vacancias' }
+            });
+
+            // 6. Histograma Error Relativo
+            const div6 = createChartDiv('Distribución de Error Relativo (%)');
+            chartsContainer.appendChild(div6);
+            
+            Plotly.newPlot(div6.querySelector('.plot'), [{
+                x: data.map(d => d['error_relativo_%']),
+                type: 'histogram',
+                nbinsx: 50,
+                marker: { color: '#38b2ac' }
+            }], {
+                xaxis: { title: 'Error Relativo (%)' },
+                yaxis: { title: 'Frecuencia' }
+            });
+        }
+
+        function createChartDiv(title, fullWidth = false) {
+            const div = document.createElement('div');
+            div.className = 'chart-container' + (fullWidth ? ' full-width' : '');
+            div.innerHTML = `
+                <div class="chart-title">${title}</div>
+                <div class="plot"></div>
+            `;
+            return div;
+        }
+    </script>
+</body>
+</html>
